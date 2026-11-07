@@ -90,6 +90,14 @@ async function runTool(id,name,a){try{switch(name){
   case'list_files':return JSON.stringify(walk(dirOf(id)));
   case'create_zip':{const out=safe(id,a.name.endsWith('.zip')?a.name:a.name+'.zip');await new Promise((ok,no)=>{const w=fs.createWriteStream(out),z=archiver('zip');w.on('close',ok);z.on('error',no);z.pipe(w);for(const f of a.files)z.file(safe(id,f),{name:f});z.finalize()});return'ZIP dibuat: '+path.basename(out)}
   default:return'Tool tidak dikenal'}}catch(e){return'ERROR: '+e.message}}
+// router bisa membalas JSON biasa ATAU stream SSE ("data: {...}"); keduanya ditangani
+const parseAI=t=>{try{return JSON.parse(t)}catch{}
+  const m={content:'',tool_calls:[]};
+  for(const l of t.split('\n')){if(!l.startsWith('data:'))continue;const d=l.slice(5).trim();if(!d||d==='[DONE]')continue;let o;try{o=JSON.parse(d)}catch{continue}
+    const x=o.choices?.[0]?.delta||o.choices?.[0]?.message;if(!x)continue;if(x.content)m.content+=x.content;
+    for(const tc of x.tool_calls||[]){const i=tc.index??(m.tool_calls.length-(tc.id?0:1));const e=(m.tool_calls[i]??={id:'',type:'function',function:{name:'',arguments:''}});
+      if(tc.id)e.id=tc.id;if(tc.function?.name)e.function.name+=tc.function.name;if(tc.function?.arguments)e.function.arguments+=tc.function.arguments}}
+  m.tool_calls=m.tool_calls.filter(Boolean).map((e,i)=>({...e,id:e.id||'call_'+i}));return{choices:[{message:m}]}};
 // ---- chat (SSE)
 app.post('/api/chat',auth,async(req,res)=>{const{convId,message,personaId,model}=req.body||{};const c=own(req,convId);if(!c||!message)return res.status(400).json({error:'Bad request'});
   res.set({'Content-Type':'text/event-stream','Cache-Control':'no-cache','X-Accel-Buffering':'no'});const send=e=>res.write('data: '+JSON.stringify(e)+'\n\n');
@@ -103,8 +111,8 @@ app.post('/api/chat',auth,async(req,res)=>{const{convId,message,personaId,model}
     if(c.title==='Percakapan baru')db.prepare('update convs set title=? where id=?').run(String(message).slice(0,40),convId);
     const mdl=model||process.env.MODEL||(await models())[0];
     for(let i=0;i<15;i++){
-      const r=await fetch(AI_BASE_URL+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+AI_API_KEY},body:JSON.stringify({model:mdl,messages:[{role:'system',content:sys},...hist.slice(-60)],tools:TOOLS})});
-      const j=await r.json();if(!r.ok)throw new Error(j.error?.message||'Error API '+r.status);
+      const r=await fetch(AI_BASE_URL+'/chat/completions',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+AI_API_KEY},body:JSON.stringify({model:mdl,stream:false,messages:[{role:'system',content:sys},...hist.slice(-60)],tools:TOOLS})});
+      const raw=await r.text();const j=parseAI(raw);if(!r.ok||j.error)throw new Error(j.error?.message||'Error API '+r.status+': '+raw.slice(0,200));
       const m=j.choices[0].message;const am={role:'assistant',content:m.content||'',...(m.tool_calls?.length?{tool_calls:m.tool_calls}:{})};save(am);hist.push(am);
       if(am.content)send({type:'text',text:am.content});
       if(!m.tool_calls?.length)break;
