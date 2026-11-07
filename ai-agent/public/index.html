@@ -1,0 +1,11 @@
+<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Agent</title><link rel="stylesheet" href="/style.css"></head><body>
+<div id="login" hidden><form id="lf"><h1>Masuk</h1><input id="lu" placeholder="Username" autocomplete="username"><input id="lp" type="password" placeholder="Password" autocomplete="current-password"><button>Masuk</button><p id="le"></p></form></div>
+<div id="app" hidden>
+<aside><button id="new">Percakapan baru</button><ul id="convs"></ul><div class="foot"><button id="adm" hidden>Pengaturan admin</button><button id="out">Keluar</button></div></aside>
+<main><header><select id="persona"></select><select id="model"></select></header>
+<section id="chat"></section>
+<form id="cf"><label class="att" title="Lampirkan file">+<input type="file" id="fi" multiple hidden></label><textarea id="in" rows="1" placeholder="Minta agent menulis kode, mencari informasi, atau membuat file…"></textarea><button>Kirim</button></form></main>
+<aside class="files"><h3>Files</h3><ul id="files"></ul><a id="zip" class="btn" hidden>Unduh semua (.zip)</a></aside>
+</div>
+<dialog id="dlg"><nav><button data-t="personas">Personalisasi</button><button data-t="skills">Skills</button><button data-t="pw">Password</button><button id="cl">Tutup</button></nav><div id="panel"></div></dialog>
+<script src="/app.js"></script></body></html>
