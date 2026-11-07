@@ -4,3 +4,6 @@ Deploy di VPS (Ubuntu/Debian): `unzip ai-agent.zip && cd ai-agent && sudo bash d
 - Quick tunnel (trycloudflare) berganti URL tiap restart. Untuk URL tetap: isi `CF_TUNNEL_TOKEN` di `.env` (token dari Cloudflare Zero Trust) lalu `sudo systemctl restart ai-agent-tunnel`.
 - Database SQLite: `/opt/ai-agent/data/app.db`. Backup: salin folder `data/`.
 - Login awal: adminn1 / 200309 → segera ganti di Pengaturan admin > Password.
+
+## Tanpa systemd (container / LXC / WSL)
+`install.sh` otomatis memakai `deploy/start.sh`. Perintah: `sudo bash /opt/ai-agent/deploy/start.sh` (jalan/restart, menampilkan URL), `sudo bash /opt/ai-agent/deploy/stop.sh` (berhenti). Log: `/opt/ai-agent/logs/`.

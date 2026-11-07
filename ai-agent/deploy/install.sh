@@ -12,7 +12,7 @@ if ! command -v cloudflared >/dev/null; then
   curl -fsSL -o /tmp/cf.deb "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${ARCH}.deb"
   dpkg -i /tmp/cf.deb; fi
 id aiagent >/dev/null 2>&1 || useradd -r -m -d "$APP" -s /usr/sbin/nologin aiagent
-mkdir -p "$APP"; cp -r "$SRC"/. "$APP"/; rm -rf "$APP/deploy/.git"
+mkdir -p "$APP"; [ "$SRC" = "$APP" ] || cp -r "$SRC"/. "$APP"/
 cd "$APP"; npm install --omit=dev
 cat > "$APP/tunnel.sh" <<'T'
 #!/usr/bin/env bash
@@ -21,6 +21,11 @@ if [ -n "${CF_TUNNEL_TOKEN:-}" ]; then exec cloudflared tunnel --no-autoupdate r
 else exec cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:${PORT:-3000}"; fi
 T
 chmod +x tunnel.sh; mkdir -p data; chown -R aiagent:aiagent "$APP"; chmod 600 .env
+chmod +x deploy/*.sh
+if [ ! -d /run/systemd/system ]; then
+  echo "systemd tidak aktif (container/LXC/WSL) -> memakai mode non-systemd."
+  bash "$APP/deploy/start.sh"; exit 0
+fi
 cat > /etc/systemd/system/ai-agent.service <<S
 [Unit]
 Description=AI Agent
@@ -48,7 +53,6 @@ WantedBy=multi-user.target
 S
 systemctl daemon-reload; systemctl enable --now ai-agent ai-agent-tunnel
 sleep 6
-# Hapus password admin plaintext dari .env setelah di-hash ke database
 sed -i '/^ADMIN_PASS=/d' "$APP/.env"
 if grep -q '^CF_TUNNEL_TOKEN=.\+' "$APP/.env"; then echo "Tunnel permanen aktif. Buka domain yang kamu set di dashboard Cloudflare."; exit 0; fi
 echo "Menunggu URL tunnel..."
