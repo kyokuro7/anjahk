@@ -16,20 +16,21 @@ const verify=(p,h)=>{const[s,k]=h.split(':');const d=crypto.scryptSync(p,Buffer.
 if(!db.prepare('select 1 from users').get()&&process.env.ADMIN_USER&&process.env.ADMIN_PASS)
   db.prepare('insert into users(username,hash,role) values(?,?,?)').run(process.env.ADMIN_USER,hash(process.env.ADMIN_PASS),'admin');
 if(!db.prepare('select 1 from personas').get())db.prepare('insert into personas(name,prompt) values(?,?)').run('Programmer Handal','Kamu adalah AI agent senior yang menulis kode rapi, aman, dan lengkap. Jawab dalam bahasa pengguna.');
+console.log('DB:',path.join(DATA,'app.db'),'| jumlah user:',db.prepare('select count(*) c from users').get().c);
 // ---- app
 const app=express();app.disable('x-powered-by');app.set('trust proxy',1);
 app.use(helmet({contentSecurityPolicy:{directives:{defaultSrc:["'self'"],scriptSrc:["'self'"],styleSrc:["'self'"],imgSrc:["'self'","data:"],connectSrc:["'self'"],objectSrc:["'none'"],frameAncestors:["'none'"]}}}));
 app.use(cookie(),express.json({limit:'2mb'}));
 app.use('/api',rate({windowMs:60000,limit:120}));
-app.use(express.static(path.join(__dirname,'public'),{dotfiles:'deny',index:'index.html'}));
+app.use(express.static(path.join(__dirname,'public'),{dotfiles:'deny',index:'index.html',etag:false,setHeaders:r=>r.setHeader('Cache-Control','no-store')}));
 const auth=(req,res,next)=>{const t=req.cookies.sid;const r=t&&db.prepare('select u.id,u.username,u.role,s.exp from sessions s join users u on u.id=s.user_id where s.token=?').get(t);
   if(!r||r.exp<Date.now())return res.status(401).json({error:'Belum login'});req.user=r;next()};
 const admin=(req,res,next)=>req.user.role==='admin'?next():res.status(403).json({error:'Hanya admin'});
 app.post('/api/login',rate({windowMs:900000,limit:10,message:{error:'Terlalu banyak percobaan'}}),(req,res)=>{
-  const{username='',password=''}=req.body||{};const u=db.prepare('select * from users where username=?').get(String(username));
-  if(!u||!verify(String(password),u.hash))return res.status(401).json({error:'Username atau password salah'});
+  const{username='',password=''}=req.body||{};const pw=String(password).trim();const u=db.prepare('select * from users where lower(username)=lower(?)').get(String(username).trim());
+  if(!u||!verify(pw,u.hash)){console.log('Login gagal: user_ada='+!!u+' panjang_pw='+pw.length);return res.status(401).json({error:'Username atau password salah'})}
   const t=crypto.randomBytes(32).toString('hex');db.prepare('insert into sessions values(?,?,?)').run(t,u.id,Date.now()+864e5*7);
-  res.cookie('sid',t,{httpOnly:true,sameSite:'strict',secure:req.secure,maxAge:864e5*7});res.json({ok:1})});
+  res.cookie('sid',t,{httpOnly:true,sameSite:'lax',secure:req.secure,maxAge:864e5*7});res.json({ok:1})});
 app.post('/api/logout',auth,(req,res)=>{db.prepare('delete from sessions where token=?').run(req.cookies.sid);res.clearCookie('sid');res.json({ok:1})});
 app.get('/api/me',auth,(req,res)=>res.json({username:req.user.username,role:req.user.role}));
 app.post('/api/admin/password',auth,admin,(req,res)=>{const p=String(req.body.password||'');if(p.length<8)return res.status(400).json({error:'Minimal 8 karakter'});

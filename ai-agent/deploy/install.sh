@@ -17,8 +17,8 @@ cd "$APP"; npm install --omit=dev
 cat > "$APP/tunnel.sh" <<'T'
 #!/usr/bin/env bash
 set -a; . /opt/ai-agent/.env; set +a
-if [ -n "${CF_TUNNEL_TOKEN:-}" ]; then exec cloudflared tunnel --no-autoupdate run --token "$CF_TUNNEL_TOKEN"
-else exec cloudflared tunnel --no-autoupdate --url "http://127.0.0.1:${PORT:-3000}"; fi
+if [ -n "${CF_TUNNEL_TOKEN:-}" ]; then exec cloudflared tunnel --no-autoupdate --protocol http2 run --token "$CF_TUNNEL_TOKEN"
+else exec cloudflared tunnel --no-autoupdate --protocol http2 --url "http://127.0.0.1:${PORT:-3000}"; fi
 T
 chmod +x tunnel.sh; mkdir -p data; chown -R aiagent:aiagent "$APP"; chmod 600 .env
 chmod +x deploy/*.sh

@@ -15,4 +15,4 @@ echo "Menunggu URL tunnel..."
 for i in $(seq 1 30); do
   URL=$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' logs/tunnel.log | tail -1 || true)
   [ -n "$URL" ] && { echo "$URL" > tunnel-url.txt; echo; echo "Website aktif: $URL"; exit 0; }; sleep 2; done
-echo "URL belum muncul. Cek: tail -n 50 $APP/logs/tunnel.log  dan  $APP/logs/app.log"
+echo "URL belum muncul. Menjalankan diagnosa..."; bash "$APP/deploy/diagnose.sh"

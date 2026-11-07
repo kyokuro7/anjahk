@@ -12,11 +12,11 @@ const api=async(u,o={})=>{const r=await fetch('/api'+u,{credentials:'same-origin
 const md=s=>esc(s).replace(/```(\w*)\n([\s\S]*?)```/g,'<pre><code>$2</code></pre>').replace(/`([^`\n]+)`/g,'<code>$1</code>').replace(/\*\*([^*\n]+)\*\*/g,'<b>$1</b>');
 let me,cur,busy=false;
 const showLogin=()=>{$('#app').hidden=true;$('#login').hidden=false};
-$('#lf').onsubmit=async e=>{e.preventDefault();try{await api('/login',{method:'POST',body:{username:$('#lu').value,password:$('#lp').value}});$('#lp').value='';boot()}catch(x){$('#le').textContent=x.message}};
+$('#lf').onsubmit=async e=>{e.preventDefault();try{await api('/login',{method:'POST',body:{username:$('#lu').value,password:$('#lp').value}});$('#lp').value='';if(!await boot())$('#le').textContent='Login benar, tapi sesi tidak tersimpan (cookie ditolak). Buka lewat URL https tunnel, bukan IP:port.'}catch(x){$('#le').textContent=x.message}};
 $('#out').onclick=async()=>{await api('/logout',{method:'POST'}).catch(()=>{});showLogin()};
-async function boot(){try{me=await api('/me')}catch{return showLogin()}
+async function boot(){try{me=await api('/me')}catch{showLogin();return false}
   $('#login').hidden=true;$('#app').hidden=false;$('#adm').hidden=me.role!=='admin';
-  $('#model').innerHTML=(await api('/models')).map(m=>`<option>${esc(m)}</option>`).join('');await loadPersonas();await loadConvs()}
+  $('#model').innerHTML=(await api('/models')).map(m=>`<option>${esc(m)}</option>`).join('');await loadPersonas();await loadConvs();return true}
 const loadPersonas=async()=>{const v=$('#persona').value;$('#persona').innerHTML=(await api('/personas')).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');if(v)$('#persona').value=v};
 async function loadConvs(){const l=await api('/convs');$('#convs').innerHTML=l.map(c=>`<li data-id="${c.id}" class="${c.id===cur?'on':''}"><b>${esc(c.title)}</b><i data-d="${c.id}">×</i></li>`).join('');
   if(!cur&&l[0])open(l[0].id);else if(!l.length)newConv()}
